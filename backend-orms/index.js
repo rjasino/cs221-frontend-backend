@@ -3,12 +3,14 @@ import dotenv from "dotenv";
 import mongodb from "mongodb";
 import jwt from "jsonwebtoken";
 import cors from "cors";
+import bcrypt from "bcrypt";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+//cross origin resource sharing
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -188,6 +190,75 @@ app.post("/generateToken", (req, res) => {
     expiresIn: "1h",
   });
   res.status(200).json({ token });
+});
+
+//endpoints for login, register, logout can be added here
+app.post("/login", async (req, res) => {
+  // Implement login logic here
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ message: "Username and password are required" });
+  }
+
+  const result = await customersCollection.findOne({
+    username,
+  });
+
+  if (!result) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+
+  const token = jwt.sign({ username }, process.env.JWT_SECRET, {
+    expiresIn: "1h",
+  });
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
+  });
+
+  res.status(200).json({ message: "Login successful" });
+});
+
+app.post("/register", async (req, res) => {
+  // Implement registration logic here
+  const { username, email, password, first_name, last_name } = req.body;
+  if (!username || !email || !password || !first_name || !last_name) {
+    return res.status(400).json({
+      message: "Missing required fields",
+      details: "username, email, password, first_name, last_name are required",
+    });
+  }
+
+  // Check if the user already exists
+  const existingUser = await customersCollection.findOne({ username });
+  if (existingUser) {
+    return res.status(409).json({ message: "User already exists" });
+  }
+
+  // Create a new user
+  const newUser = {
+    username,
+    email,
+    password: await bcrypt.hash(password, 10), //salt value of 10
+    first_name,
+    last_name,
+    created_at: new Date(),
+  };
+
+  const result = await customersCollection.insertOne(newUser);
+  res.status(201).json({
+    message: "User registered successfully",
+    user: result,
+  });
+});
+
+app.logout("/logout", (req, res) => {
+  res.clearCookie("token");
+  res.status(200).json({ message: "Logout successful" });
 });
 
 connectToDatabase().then(() => {
