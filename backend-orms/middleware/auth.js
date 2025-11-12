@@ -1,8 +1,4 @@
-import { verifyAccessToken } from "../utils/tokenUtils.js";
-import {
-  unauthorizedResponse,
-  forbiddenResponse,
-} from "../utils/responseUtils.js";
+import jwt from "jsonwebtoken";
 
 /**
  * Authentication middleware - validates access token from cookies or headers
@@ -19,39 +15,21 @@ export const authenticateToken = (req, res, next) => {
     }
 
     if (!token) {
-      return unauthorizedResponse(res, "Access token required");
+      return res.status(401).json({
+        success: false,
+        message: "Access token required",
+      });
     }
 
-    const decoded = verifyAccessToken(token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
-    return forbiddenResponse(res, error.message || "Invalid or expired token");
+    return res.status(403).json({
+      success: false,
+      message: error.message || "Invalid or expired token",
+    });
   }
 };
 
-/**
- * Optional authentication - doesn't fail if token is missing
- */
-export const optionalAuth = (req, res, next) => {
-  try {
-    let token = req.cookies?.accessToken;
-
-    if (!token) {
-      const authHeader = req.headers["authorization"];
-      token = authHeader && authHeader.split(" ")[1];
-    }
-
-    if (token) {
-      const decoded = verifyAccessToken(token);
-      req.user = decoded;
-    }
-  } catch (error) {
-    // Token is invalid but we don't fail the request
-    req.user = null;
-  }
-
-  next();
-};
-
-export default { authenticateToken, optionalAuth };
+export default { authenticateToken };

@@ -3,25 +3,19 @@ import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { connectToDatabase } from "./config/database.js";
-import config from "./config/index.js";
-
-// Import routes
 import authRoutes from "./routes/auth.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
-
-// Import middleware
-import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = config.port;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(
   cors({
-    origin: config.corsOrigin,
-    credentials: true, // Allow cookies to be sent
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    credentials: true,
     allowedHeaders: "*",
     methods: "*",
   })
@@ -29,7 +23,7 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser()); // Parse cookies
+app.use(cookieParser());
 
 // Health check endpoint
 app.get("/", (req, res) => {
@@ -52,14 +46,29 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/customers", customerRoutes);
 
-// Error handling middleware (must be last)
-app.use(notFoundHandler);
-app.use(errorHandler);
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found - ${req.originalUrl}`,
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error("Error:", err);
+
+  res.status(err.statusCode || 500).json({
+    success: false,
+    message: err.message || "Internal server error",
+    ...(process.env.NODE_ENV === "development" && { error: err.stack }),
+  });
+});
 
 // Connect to database and start server
 connectToDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Environment: ${config.nodeEnv}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
   });
 });
