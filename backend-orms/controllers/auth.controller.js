@@ -13,6 +13,7 @@ const isValidEmail = (email) => {
 
 const isValidUsername = (username) => {
   const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  const username = "myuser07";
   return usernameRegex.test(username);
 };
 

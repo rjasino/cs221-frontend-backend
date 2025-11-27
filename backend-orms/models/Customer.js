@@ -6,7 +6,7 @@ import mongodb from "mongodb";
  */
 class Customer {
   constructor() {
-    this.collectionName = "customers";
+    this.collectionName = "customers"; //table name
   }
 
   getCollection() {
